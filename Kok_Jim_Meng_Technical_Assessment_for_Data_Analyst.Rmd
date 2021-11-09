@@ -1,0 +1,192 @@
+---
+title: "Technical Assessment for Data Anaylst (Clinical Quality & Performance Management)"
+author: "Kok Jim Meng"
+date: "9 November 2021"
+output:
+  html_document:
+    theme: cerulean
+    toc: yes
+    toc_float: yes
+runtime: shiny
+---
+
+# 1. Install the Relevant Packages
+
+First of all, I need to install the relevant libraries that are used in this assessment. To install, uncomment the following code chunk.
+
+```{r echo = TRUE, message=FALSE, warning= FALSE }
+#install.packages("tidyverse")
+#install.packages("glue")
+#install.packages("shiny")
+#install.packages("ggthemes")
+```
+
+# 2. Import
+
+Here, I import the following packages that have installed earlier.
+
+```{r echo = TRUE, message=FALSE, warning= FALSE }
+library(tidyverse)
+library(glue)
+library(shiny)
+library(ggthemes)
+```
+
+Furthermore, the datasets are imported based on the instructions given and they were downloaded from [https://github.com/rfordatascience/tidytuesday/tree/master/data/2018/2018-11-13](https://github.com/rfordatascience/tidytuesday/tree/master/data/2018/2018-11-13)
+
+```{r echo = TRUE, message=FALSE, warning= FALSE }
+malaria_deaths_dataset <- read_csv("malaria_deaths.csv")
+malaria_deaths_age_dataset <- read_csv("malaria_deaths_age.csv")
+malaria_inc <- read_csv("malaria_inc.csv")
+```
+
+# 3. Data Processing
+
+```{r echo = TRUE, message=TRUE, warning= FALSE }
+#glimpse(malaria_deaths_dataset)
+#glimpse(malaria_deaths_age_dataset)
+#glimpse(malaria_inc)
+#malaria_deaths_dataset$`Deaths - Malaria - Sex: Both - Age: Age-standardized (Rate) (per 100,000 people)`
+#is.nan(malaria_deaths_dataset$`Deaths - Malaria - Sex: Both - Age: Age-standardized (Rate) (per 100,000 people)`)
+```
+
+`glimpse` function is to allow us to look at the variable names and their types and samples of values.
+
+```{r echo = TRUE, message=TRUE, warning= FALSE }
+glimpse(malaria_deaths_dataset)
+glimpse(malaria_deaths_age_dataset)
+glimpse(malaria_inc)
+```
+
+However, both the malaria_deaths_dataset's death variable and malaria_inc's incidence have a long name each. Hence, renaming is conducted to showcase the details of the two datasets.
+
+```{r echo = TRUE, message=TRUE, warning= FALSE }
+malaria_deaths_dataset <- malaria_deaths_dataset %>% 
+  rename(Deaths = `Deaths - Malaria - Sex: Both - Age: Age-standardized (Rate) (per 100,000 people)`)
+
+malaria_inc <- malaria_inc %>% 
+  rename(Incidence = `Incidence of malaria (per 1,000 population at risk) (per 1,000 population at risk)`)
+
+glimpse(malaria_deaths_dataset)
+glimpse(malaria_inc)
+```
+
+From here, I have selected the relevant variables that will be used to generate the data visualisations.
+
+```{r echo = TRUE, message=TRUE, warning= FALSE }
+malaria_deaths_dataset <- malaria_deaths_dataset %>% 
+  select(Entity, Year, Deaths)
+
+malaria_deaths_age_dataset <- malaria_deaths_age_dataset %>% 
+  select(entity, year, age_group, deaths)
+
+malaria_inc <- malaria_inc %>% 
+  select(Entity, Year, Incidence)
+
+glimpse(malaria_deaths_dataset)
+glimpse(malaria_deaths_age_dataset)
+glimpse(malaria_inc)
+```
+
+To ensure meaningful insights in the visualisation section, checking for values with zeros are put into place. This is to ensure that if a country or a region has zero values throughout the years. With that, it does not bring any meaningful insights.
+
+```{r echo = TRUE, message=TRUE, warning= FALSE }
+colSums(malaria_deaths_dataset == 0)
+```
+
+```{r echo = TRUE, message=TRUE, warning= FALSE }
+malaria_deaths_dataset %>% 
+  filter(Deaths == 0)
+```
+
+```{r echo = TRUE, message=TRUE, warning= FALSE }
+colSums(malaria_deaths_age_dataset == 0)
+```
+
+```{r echo = TRUE, message=TRUE, warning= FALSE }
+malaria_deaths_age_dataset %>% 
+  filter(deaths == 0)
+```
+
+```{r echo = TRUE, message=TRUE, warning= FALSE }
+colSums(malaria_inc == 0)
+```
+
+```{r echo = TRUE, message=TRUE, warning= FALSE }
+malaria_inc %>% 
+  filter(Incidence == 0)
+```
+
+Hence, the dependent variable - death - of both the malaria_deaths_dataset and malaria_deaths_age_dataset have zero values through each country's or region's periods. Therefore, a country or region with zero deaths throughout the respective periods does not bring in meaningful insights, the datasets will remove countries or regions with zero deaths throughout the periods.
+
+```{r echo = TRUE, message=FALSE, warning= FALSE }
+malaria_deaths_dataset <- malaria_deaths_dataset[ malaria_deaths_dataset$Deaths!=0, ]
+
+malaria_deaths_age_dataset <- malaria_deaths_age_dataset[ malaria_deaths_age_dataset$deaths!=0, ]
+```
+
+# 4. Data Visualisation
+
+The following visualisations allow users to select the country or the region, together with the selecting of age groups for 4.2 Malaria Deaths in terms of Country/Region and Age Group visualisation, that he/she is interested in via the dropdown menus.
+
+In this technical assessment, I'll be using Indonesia as an example for the analysis.
+
+## 4.1 Malaria Deaths in terms of Country/Region
+
+```{r echo = FALSE, error = FALSE, message=FALSE}
+selectInput("d_countries","Select a Country or a Region",
+              choices =  c(unique(as.character(malaria_deaths_dataset$Entity))))
+
+renderPlot({
+      malaria_deaths_choosecountry <- malaria_deaths_dataset[ malaria_deaths_dataset$Entity==input$d_countries, ] 
+      ggplot(data=malaria_deaths_choosecountry,aes(x=Year,y=Deaths)) + 
+        geom_bar(stat="Identity", fill ="red") +
+        labs(x = "Year", y = "No. of Deaths (per 100,000 people)", title = paste("Malaria Deaths (per 100,000 people) in", input$d_countries, "from 1990 to 2016", sep=" ")) +
+        ggthemes::theme_economist()
+    })
+```
+
+In the above chart, the progress of malaria deaths (per 100,000) have reduced steadily across the years from 1990 to 2016.
+
+## 4.2 Malaria Deaths in terms of Country/Region and Age Group selected
+
+```{r echo = FALSE, error = FALSE, message=FALSE}
+selectInput("da_countries","Select a Country or a Region",
+              choices =  c(unique(as.character(malaria_deaths_age_dataset$entity))))
+selectInput("agegroup","Select an Age Group",
+              choices =  c(unique(as.character(malaria_deaths_age_dataset$age_group))))
+
+
+renderPlot({
+      malaria_deaths_age_choosecountry <- malaria_deaths_age_dataset[ malaria_deaths_age_dataset$entity==input$da_countries, ] 
+      malaria_deaths_age_chooseage <- malaria_deaths_age_choosecountry[ malaria_deaths_age_choosecountry$age_group==input$agegroup, ] 
+      ggplot(data=malaria_deaths_age_chooseage,aes(x=year,y=deaths)) + 
+        geom_bar(stat="Identity", fill = "red") +
+        labs(x = "Year", y = "No. of Deaths", title = paste("Malaria Deaths in terms of Aged", input$agegroup, "in", input$da_countries, "from 1990 to 2016", sep=" ")) +
+        ggthemes::theme_economist()
+    })
+```
+
+For aged under 5 years old and aged 5 to 14 years old, similar to the chart in 4.1 Malaria Deaths in terms of Country/Region, the number of malaria deaths has reduced steadily across the years from 1990 to 2016.
+
+However, for aged 15 to 49 years old, the number of malaria deaths rose steadily to the year 1998 and reduce progressively after the year.
+
+Lastly, for both 50 to 69 years old and 70 years old & above, the number of malaria deaths rose steadily to the year 1998 and reduce progressively under 2003 and started to rise again after then.
+
+## 4.3 Malaria Incidence
+
+```{r echo = FALSE, error = FALSE, message=FALSE}
+selectInput("i_countries","Select a Country or a Region",
+              choices =  c(unique(as.character(malaria_inc$Entity))))
+
+renderPlot({
+      malaria_inc_choosecountry <- malaria_inc[ malaria_inc$Entity==input$i_countries, ] 
+      ggplot(data=malaria_inc_choosecountry,aes(x = Year, y = Incidence)) + 
+  geom_line(color="red") +
+        geom_point(color="red") +
+        labs(x = "Year", y = "Malaria Incidence", title = paste("Malaria Incidence (per 1,000 population at risk) in", input$i_countries, sep=" ")) +
+        ggthemes::theme_economist()
+    })
+```
+
+In terms of malaria incidence (per 1,000 population at risk), it has increased at a slower rate from 2000 to 2010 in Indonesia. After 2010, it has dropped sharply in 2015.
